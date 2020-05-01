@@ -9,11 +9,6 @@
 #include <dirent.h>
 #include <errno.h>
 
-#define SPACES_TO_CMDLINE 20
-#define MAX_PID_NAME_LENGTH 6 // 32768 (plus slash)
-#define PROC_LENGTH 6 // /proc + space for null terminator
-#define CMDLINE_LENGTH 8
-#define STAT_LENGTH 5
 #define MAX_CMDLINE_LENGTH 70 // Just the max I want to print so it looks good :D
 #define MAX_PROC_NAME 17 // comm[16] in kernel + null terminator
 
