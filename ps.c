@@ -29,7 +29,7 @@ int get_name(struct ProcessInfo *p);
 
 int main(){
 	struct dirent *de = {0};
-	DIR *dr;
+	DIR *dr = {0};
 	int pid;
 
 	dr = opendir("/proc");
