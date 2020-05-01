@@ -53,7 +53,7 @@ int main(){
 }
 
 int print_line(int pid){
-	struct ProcessInfo p = {pid, {0}, {0}};
+	struct ProcessInfo p = {.pid = pid, .name = {0}, .cmd_line = {0}};
 
 	CHECK(get_name(&p));
 	CHECK(get_cmdline(&p));
