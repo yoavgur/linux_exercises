@@ -1,3 +1,6 @@
+#include <unistd.h>
+#include <linux/limits.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -14,95 +17,91 @@
 #define MAX_CMDLINE_LENGTH 70 // Just the max I want to print so it looks good :D
 #define MAX_PROC_NAME 17 // comm[16] in kernel + null terminator
 
+#define PRINT_ERROR do { printf("Error at %s:%d\n", __FILE__, __LINE__);return 1; } while (0)
+#define CHECK_VALUE(x,y) do { if(x != y){PRINT_ERROR;} } while(0)
+#define CHECK_NOT_VALUE(x,y) do { if(x == y){PRINT_ERROR;} } while(0)
+#define CHECK(x) CHECK_VALUE(x,0)
+
 struct ProcessInfo {
 	int pid;
 	char name[MAX_PROC_NAME]; 
 	char cmd_line[MAX_CMDLINE_LENGTH];
 } ;
 
-int main(int argc, char *argv[]){
-	struct dirent *de;
-	DIR *dr = opendir("/proc");
+int print_line(int pid);
+int get_cmdline(struct ProcessInfo *p);
+int get_name(struct ProcessInfo *p);
+
+int main(){
+	struct dirent *de = {0};
+	DIR *dr;
 	int pid;
+
+	dr = opendir("/proc");
+	CHECK_NOT_VALUE(dr, NULL);
 	
 	printf("PID\tNAME%-20sCMDLINE\n", " ");
 
-	if (dr == NULL){
-		perror("Couldn't open dir");
-		return 1;
-	}
-
 	while ((de = readdir(dr)) != NULL){
-		pid = atoi(de->d_name);
-		if(pid != 0){
+		pid = atoi(de->d_name); 
+		if(pid != 0){ // Make sure this is a process folder and not unrelated file in /proc
 			print_line(pid);
 		}
 	}
+
+	return 0;
 }
 
 int print_line(int pid){
-	struct ProcessInfo p;
-	p.pid = pid;
-	get_name(&p);
-	get_cmdline(&p);
+	struct ProcessInfo p = {pid, {0}, {0}};
 
-	if (strcmp(p.cmd_line, "") == 0){
+	CHECK(get_name(&p));
+	CHECK(get_cmdline(&p));
+
+	if (p.cmd_line[0] == 0){
 		printf("%d\t[%s]\n", pid, p.name); // supposedly a kernel thread...
 	} else {
 		printf("%d\t%-20s\t%s\n", pid, p.name, p.cmd_line);
 	}
+
+	return 0;
 }
 
 int get_cmdline(struct ProcessInfo *p){
-	int fd, len;
-	char path[PROC_LENGTH + MAX_PID_NAME_LENGTH + CMDLINE_LENGTH];
+	int fd;
+	int len;
+	char path[PATH_MAX] = {0};
 
-	sprintf(path, "/proc/%d/cmdline\0", p->pid);
+	snprintf(path, PATH_MAX, "/proc/%d/cmdline", p->pid);
 
 	fd = open(path, O_RDONLY);
-	if (fd == -1){
-		perror("Couldn't open file");
-		return 1;
-	}
+	CHECK_NOT_VALUE(fd, -1);
 
 	len = read(fd, p->cmd_line, MAX_CMDLINE_LENGTH - 1);
-	if (len == -1){
-		perror("Coudln't open cmdline");
-		return 1;
-	}
+	CHECK_NOT_VALUE(len, -1);
 	
-	p->cmd_line[len] = 0;
-
 	return 0;	
 }
 
 int get_name(struct ProcessInfo *p){
 	int fd;
-	char buffer[255];
-	char path[PROC_LENGTH + MAX_PID_NAME_LENGTH + STAT_LENGTH];
+	char buffer[255] = {0};
+	char path[PATH_MAX] = {0};
 
-	sprintf(path, "/proc/%d/stat\0", p->pid);
+	snprintf(path, PATH_MAX, "/proc/%d/stat", p->pid);
 
 	fd = open(path, O_RDONLY);
-	if (fd == -1){
-		perror("Couldn't open stat");
-		return 1;
-	}
+	CHECK_NOT_VALUE(fd, -1);
 
-	if (read(fd, buffer, 255) == -1){
-		perror("Coudln't read from stat");
-		return 1;
-	}
+	CHECK_NOT_VALUE(read(fd, buffer, sizeof(buffer)), -1);
 
 	char *start_index = strchr(buffer, '(');
 	char *end_index = strrchr(buffer, ')');
 
-	if (start_index == NULL || end_index == NULL){
-		printf("Couldn't parse stat correctly '%s'\n", buffer);
-		return;
-	}
+	CHECK_NOT_VALUE(start_index, NULL);
+	CHECK_NOT_VALUE(end_index, NULL);
 
-	memset(end_index, 0, 1);
+	end_index[0] = 0;
 
 	strncpy(p->name, start_index+1, MAX_PROC_NAME);
 	
