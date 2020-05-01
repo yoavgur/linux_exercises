@@ -22,7 +22,6 @@ struct ProcessInfo {
 int main(int argc, char *argv[]){
 	struct dirent *de;
 	DIR *dr = opendir("/proc");
-	char full_path[PROC_LENGTH + MAX_PID_NAME_LENGTH];
 	int pid;
 	
 	printf("PID\tNAME                    CMDLINE\n");
@@ -35,17 +34,16 @@ int main(int argc, char *argv[]){
 	while ((de = readdir(dr)) != NULL){
 		pid = atoi(de->d_name);
 		if(pid != 0){
-			sprintf(full_path, "/proc/%s", de->d_name);
-			print_line(full_path, pid);
+			print_line(pid);
 		}
 	}
 }
 
-int print_line(char *path, int pid){
+int print_line(int pid){
 	struct ProcessInfo p;
 	p.pid = pid;
-	get_name(path, &p);
-	get_cmdline(path, &p);
+	get_name(&p);
+	get_cmdline(&p);
 
 	if (strcmp(p.cmd_line, "") == 0){
 		printf("%d\t[%s]\n", pid, p.name);
@@ -54,13 +52,13 @@ int print_line(char *path, int pid){
 	}
 }
 
-int get_cmdline(char *path, struct ProcessInfo *p){
+int get_cmdline(struct ProcessInfo *p){
 	int fd, len;
-	char new_path[PROC_LENGTH + MAX_PID_NAME_LENGTH + CMDLINE_LENGTH];
+	char path[PROC_LENGTH + MAX_PID_NAME_LENGTH + CMDLINE_LENGTH];
 
-	sprintf(new_path, "%s/cmdline\0", path);
+	sprintf(path, "/proc/%d/cmdline\0", p->pid);
 
-	fd = open(new_path, O_RDONLY);
+	fd = open(path, O_RDONLY);
 	if (fd == -1){
 		perror("Couldn't open file");
 		return 1;
@@ -77,14 +75,14 @@ int get_cmdline(char *path, struct ProcessInfo *p){
 	return 0;	
 }
 
-int get_name(char *path, struct ProcessInfo *p){
+int get_name(struct ProcessInfo *p){
 	int fd;
 	char buffer[255];
-	char new_path[PROC_LENGTH + MAX_PID_NAME_LENGTH + STAT_LENGTH];
+	char path[PROC_LENGTH + MAX_PID_NAME_LENGTH + STAT_LENGTH];
 
-	sprintf(new_path, "%s/stat\0", path);
+	sprintf(path, "/proc/%d/stat\0", p->pid);
 
-	fd = open(new_path, O_RDONLY);
+	fd = open(path, O_RDONLY);
 	if (fd == -1){
 		perror("Couldn't open file");
 		return 1;
