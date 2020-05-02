@@ -1,5 +1,7 @@
+CFLAGS ?= -Wall -Wextra -Werror
+
 ps: ps.c
-	gcc -Wall -Wextra -Werror ps.c -o ps 
+	gcc $(CFLAGS) $^ -o $@
 
 clean:
 	rm -f ps
