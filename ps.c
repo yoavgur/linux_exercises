@@ -8,22 +8,16 @@
 #include <stdio.h>
 #include <dirent.h>
 #include <errno.h>
+#include "utils.h"
 
 #define MAX_CMDLINE_LENGTH 70 // Just the max I want to print so it looks good :D
 #define MAX_PROC_NAME 17 // comm[16] in kernel + null terminator
-
-#define CHECK(x) do { if(!(x)){printf("Error at %s:%d\n", __FILE__, __LINE__);return ERROR;} } while(0)
 
 struct ProcessInfo {
 	int pid;
 	char name[MAX_PROC_NAME]; 
 	char cmd_line[MAX_CMDLINE_LENGTH];
 } ;
-
-typedef enum {   // Not a lot of options so far :D
-	NO_ERROR,
-	ERROR
-} ErrorCode;
 
 
 ErrorCode print_line(int pid);
