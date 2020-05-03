@@ -1,3 +1,6 @@
+#include <unistd.h>
+#include <linux/limits.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -5,12 +8,8 @@
 #include <stdio.h>
 #include <dirent.h>
 #include <errno.h>
+#include "utils.h"
 
-#define SPACES_TO_CMDLINE 20
-#define MAX_PID_NAME_LENGTH 6 // 32768 (plus slash)
-#define PROC_LENGTH 6 // /proc + space for null terminator
-#define CMDLINE_LENGTH 8
-#define STAT_LENGTH 5
 #define MAX_CMDLINE_LENGTH 70 // Just the max I want to print so it looks good :D
 #define MAX_PROC_NAME 17 // comm[16] in kernel + null terminator
 
@@ -20,91 +19,96 @@ struct ProcessInfo {
 	char cmd_line[MAX_CMDLINE_LENGTH];
 } ;
 
-int main(int argc, char *argv[]){
-	struct dirent *de;
-	DIR *dr = opendir("/proc");
-	int pid;
+
+ErrorCode print_line(int pid);
+ErrorCode get_cmdline(struct ProcessInfo *p);
+ErrorCode get_name(struct ProcessInfo *p);
+
+int main(){
+	ErrorCode err = NO_ERROR;
+	struct dirent *de = NULL;
+	DIR *dr = NULL;
+	int pid = -1;
+
+	dr = opendir("/proc");
+	CHECK_GOTO_CLEANUP(dr != NULL);
 	
 	printf("PID\tNAME%-20sCMDLINE\n", " ");
 
-	if (dr == NULL){
-		perror("Couldn't open dir");
-		return 1;
-	}
-
 	while ((de = readdir(dr)) != NULL){
-		pid = atoi(de->d_name);
-		if(pid != 0){
-			print_line(pid);
+		pid = atoi(de->d_name); 
+		if(pid != 0){ // Make sure this is a process folder and not unrelated file in /proc
+			CHECK_GOTO_CLEANUP(print_line(pid) == NO_ERROR);
 		}
 	}
+
+cleanup:
+	WARN(closedir(dr) == 0);
+	return err;
 }
 
-int print_line(int pid){
-	struct ProcessInfo p;
-	p.pid = pid;
-	get_name(&p);
-	get_cmdline(&p);
+ErrorCode print_line(int pid){
+	ErrorCode err = NO_ERROR;
+	struct ProcessInfo p = {.pid = pid};
 
-	if (strcmp(p.cmd_line, "") == 0){
+	CHECK_GOTO_CLEANUP(get_name(&p) == NO_ERROR);
+	CHECK_GOTO_CLEANUP(get_cmdline(&p) == NO_ERROR);
+
+	if (p.cmd_line[0] == 0){
 		printf("%d\t[%s]\n", pid, p.name); // supposedly a kernel thread...
 	} else {
 		printf("%d\t%-20s\t%s\n", pid, p.name, p.cmd_line);
 	}
+
+cleanup:
+	return err;
 }
 
-int get_cmdline(struct ProcessInfo *p){
-	int fd, len;
-	char path[PROC_LENGTH + MAX_PID_NAME_LENGTH + CMDLINE_LENGTH];
+ErrorCode get_cmdline(struct ProcessInfo *p){
+	ErrorCode err = NO_ERROR;
+	int fd = -1;
+	int len = -1;
+	char path[PATH_MAX] = {0};
 
-	sprintf(path, "/proc/%d/cmdline\0", p->pid);
+	snprintf(path, sizeof(path), "/proc/%d/cmdline", p->pid);
 
 	fd = open(path, O_RDONLY);
-	if (fd == -1){
-		perror("Couldn't open file");
-		return 1;
-	}
+	CHECK_GOTO_CLEANUP(fd != -1);
 
-	len = read(fd, p->cmd_line, MAX_CMDLINE_LENGTH - 1);
-	if (len == -1){
-		perror("Coudln't open cmdline");
-		return 1;
-	}
+	len = read(fd, p->cmd_line, sizeof(p->cmd_line) - 1);
+	CHECK_GOTO_CLEANUP(len != -1);
+
+cleanup:
+	WARN(close(fd) == 0);
 	
-	p->cmd_line[len] = 0;
-
-	return 0;	
+	return err;	
 }
 
-int get_name(struct ProcessInfo *p){
-	int fd;
-	char buffer[255];
-	char path[PROC_LENGTH + MAX_PID_NAME_LENGTH + STAT_LENGTH];
+ErrorCode get_name(struct ProcessInfo *p){
+	ErrorCode err = NO_ERROR;
+	int fd = -1;
+	char buffer[255] = {0};
+	char path[PATH_MAX] = {0};
 
-	sprintf(path, "/proc/%d/stat\0", p->pid);
+	snprintf(path, sizeof(path), "/proc/%d/stat", p->pid);
 
 	fd = open(path, O_RDONLY);
-	if (fd == -1){
-		perror("Couldn't open stat");
-		return 1;
-	}
+	CHECK_GOTO_CLEANUP(fd != -1);
 
-	if (read(fd, buffer, 255) == -1){
-		perror("Coudln't read from stat");
-		return 1;
-	}
+	CHECK_GOTO_CLEANUP(read(fd, buffer, sizeof(buffer)) != -1);
 
 	char *start_index = strchr(buffer, '(');
 	char *end_index = strrchr(buffer, ')');
 
-	if (start_index == NULL || end_index == NULL){
-		printf("Couldn't parse stat correctly '%s'\n", buffer);
-		return;
-	}
+	CHECK_GOTO_CLEANUP(start_index != NULL);
+	CHECK_GOTO_CLEANUP(end_index != NULL);
 
-	memset(end_index, 0, 1);
+	end_index[0] = '\0';
 
-	strncpy(p->name, start_index+1, MAX_PROC_NAME);
-	
-	return 0;
+	strncpy(p->name, start_index+1, sizeof(p->name));
+
+cleanup:
+	WARN(close(fd) == 0);
+
+	return err;
 }
