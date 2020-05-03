@@ -26,8 +26,8 @@ ErrorCode get_name(struct ProcessInfo *p);
 
 int main(){
 	ErrorCode err = NO_ERROR;
-	struct dirent *de = {0};
-	DIR *dr = {0};
+	struct dirent *de = NULL;
+	DIR *dr = NULL;
 	int pid = -1;
 
 	dr = opendir("/proc");
