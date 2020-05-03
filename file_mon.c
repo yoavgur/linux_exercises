@@ -1,8 +1,8 @@
-#include "utils.h"
 #include <string.h>
 #include <stdio.h>
 #include <sys/inotify.h>
 #include <unistd.h>
+#include "utils.h"
 
 #define PRINT_IF_BIT_IN_MASK(mask, bit, s) do { if(mask & bit){ printf("%s", s); } } while(0)
 
@@ -23,6 +23,7 @@ ErrorCode monitor_file(char *file_name){
     ErrorCode err = NO_ERROR;
     int fd = -1;
     int wd = -1;
+    int can_monitor_file = 1;
     struct inotify_event event = {0};
 
     fd = inotify_init();
@@ -32,7 +33,7 @@ ErrorCode monitor_file(char *file_name){
     CHECK_GOTO_CLEANUP(wd != -1);
 
     printf("Monitoring file %s\n", file_name);
-    while (1){
+    do {
         CHECK_GOTO_CLEANUP(read(fd, &event, sizeof(event)) == sizeof(event));
         PRINT_IF_BIT_IN_MASK(event.mask, IN_ACCESS, "File has been accessed\n");
         PRINT_IF_BIT_IN_MASK(event.mask, IN_ATTRIB, "File metadata has been changed\n");
@@ -45,14 +46,15 @@ ErrorCode monitor_file(char *file_name){
 
         if (event.mask & IN_IGNORED) {
             printf("File is no longer available for monitoring\n");
+            can_monitor_file = 0;
             break;
         }
         memset(&event, 0, sizeof(event));
-    }
+    } while (can_monitor_file);
 
 cleanup:
-    CHECK_NO_RETURN(close(fd) != -1);
-    CHECK_NO_RETURN(close(wd) != -1);
+    WARN(close(fd) != -1);
+    WARN(close(wd) != -1);
 
     return err;
 }
