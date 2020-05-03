@@ -4,8 +4,6 @@
 #include <unistd.h>
 #include "utils.h"
 
-#define PRINT_IF_BIT_IN_MASK(mask, bit, s) do { if(mask & bit){ printf("%s", s); } } while(0)
-
 ErrorCode monitor_file(char *file_name);
 
 int main(int argc, char *argv[]){
