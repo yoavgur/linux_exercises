@@ -4,10 +4,10 @@
 #include <unistd.h>
 #include "utils.h"
 
-ErrorCode block_file(char *file);
+ErrorCode block_file(const char *file);
 ErrorCode send_response(int fd, int fan_fd);
 ErrorCode handle_events(int fan_fd);
-void print_mask_bits(unsigned long long mask);
+void print_mask_bits(uint64_t mask);
 
 int main(int argc, char *argv[]){
     if (argc != 2){
@@ -20,7 +20,7 @@ int main(int argc, char *argv[]){
     return 0;
 }
 
-ErrorCode block_file(char *file){
+ErrorCode block_file(const char *file){
     ErrorCode err = NO_ERROR;
     int fan_fd = -1;
     
@@ -76,7 +76,7 @@ cleanup:
     return err;
 }
 
-void print_mask_bits(unsigned long long mask){
+void print_mask_bits(uint64_t mask){
     PRINT_IF_BIT_IN_MASK(mask, FAN_ACCESS_PERM, "Attempted access to file\n");
     PRINT_IF_BIT_IN_MASK(mask, FAN_OPEN_EXEC_PERM, "Attempted execution of file\n");
     PRINT_IF_BIT_IN_MASK(mask, FAN_OPEN_PERM, "Attempted opening file\n");

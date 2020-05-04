@@ -1,4 +1,6 @@
-#define PRINT_ERROR(msg) printf("%s - %s:%d\n", msg, __FILE__, __LINE__)
+#define ERROR_OUTPUT stderr
+
+#define PRINT_ERROR(msg) fprintf(ERROR_OUTPUT, "%s - %s:%d\n", msg, __FILE__, __LINE__)
 
 #define CHECK(x) do { \
 				   if(!(x)){ \
